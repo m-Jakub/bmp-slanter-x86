@@ -1,0 +1,18 @@
+# Ignore object files and executables
+*.o
+slbmp1
+
+# Ignore listing/debugging files
+*.lst
+
+# Ignore temporary files
+*.tmp
+*.log
+
+# Ignore other editor/IDE-specific files
+*.swp
+*.swo
+.vscode/
+
+# Ignore pdf files
+*.pdf
