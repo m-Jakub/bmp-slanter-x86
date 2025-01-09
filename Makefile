@@ -1,18 +1,33 @@
+# Target executable file
 EXEFILE = slbmp1
+
+# Object files
 OBJECTS = slbmp1.o slantbmp1.o
+
+# Compiler and assembler formats
 CCFMT = -m32
 NASMFMT = -f elf32
-CCOPT = 
-NASMOPT = -w+all
 
-.c.o:
-	cc $(CCFMT) $(CCOPT) -c $<
+# Compiler and assembler options
+CCOPT = -g -O0 -Wall -Wextra
+NASMOPT = -g -F dwarf -w+all
 
-.s.o:
-	nasm $(NASMFMT) $(NASMOPT) -l $*.lst $<
+# Default target
+.PHONY: all clean
+all: $(EXEFILE)
 
+# Rule for building the executable
 $(EXEFILE): $(OBJECTS)
-	cc $(CCFMT) -o $@ $^
-	
+	$(CC) $(CCFMT) -o $@ $^
+
+# Rule for compiling C files to object files
+%.o: %.c
+	$(CC) $(CCFMT) $(CCOPT) -c $< -o $@
+
+# Rule for assembling .s files to object files
+%.o: %.s
+	nasm $(NASMFMT) $(NASMOPT) -l $*.lst -o $@ $<
+
+# Clean target
 clean:
-	rm *.o *.lst $(EXEFILE)
+	rm -f *.o *.lst $(EXEFILE)

@@ -12,7 +12,9 @@ slbmp1
 # Ignore other editor/IDE-specific files
 *.swp
 *.swo
-.vscode/
 
 # Ignore pdf files
 *.pdf
+
+# Ignore output.bmp
+output.bmp
