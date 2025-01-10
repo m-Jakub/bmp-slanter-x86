@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/slbmp1",
-            "args": ["input.bmp", "output.bmp", "500"],
+            "args": ["input.bmp", "output.bmp"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

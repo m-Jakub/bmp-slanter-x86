@@ -22,8 +22,8 @@ slantbmp1:
 
     ; Calculate stride: stride = ((width + 31) / 32) * 4
     mov     eax, ecx         ; eax = width
-    add     eax, 31          ; eax = width + 31
-    mov     ebx, 32          ; ebx = 32
+    add     eax, 31
+    mov     ebx, 32
     xor     edx, edx         ; Clear edx before division
     div     ebx              ; eax = (width + 31) / 32, edx = remainder
     imul    eax, 4           ; eax = stride
@@ -32,44 +32,46 @@ slantbmp1:
     ; Initialize row index to 0
     xor     edi, edi         ; edi = row index (0)
 
-process_row:
-    cmp     edi, edx
-    jge     end_function     ; Exit loop if row >= height
+; process_row:
+;     cmp     edi, edx
+;     jge     end_function     ; Exit loop if row >= height
 
-    ; Calculate row pointer: img + (row * stride)
-    mov     eax, edi         ; eax = row index
-    imul    eax, ebx         ; eax = row index * stride
-    add     eax, esi         ; eax = img + (row * stride)
-    mov     edi, eax         ; edi = current row pointer
+;     ; Calculate row pointer: img + (row * stride)
+;     mov     eax, edi         ; eax = row index
+;     imul    eax, ebx         ; eax = row index * stride
+;     add     eax, esi         ; eax = img + (row * stride)
+;     mov     edi, eax         ; edi = current row pointer
 
-    ; === Begin Integration of Slanting Logic ===
+;     ; === Begin Integration of Slanting Logic ===
 
-    ; TODO: Implement your slanting logic here.
-    ; Example Placeholder: Shift each byte in the row left by 1 bit
+;     ; TODO: Implement your slanting logic here.
+;     ; Example Placeholder: Shift each byte in the row left by 1 bit
 
-    mov     ecx, ebx         ; ecx = stride (bytes per row)
-    mov     esi, edi         ; esi = current row pointer
+;     mov     ecx, ebx         ; ecx = stride (bytes per row)
+; ;     mov     esi, edi         ; esi = current row pointer
 
-shift_bits:
-    cmp     ecx, 0
-    je      next_row
-    mov     al, [esi]
-    shl     al, 1             ; Shift left by 1 bit (example operation)
-    mov     [esi], al
-    inc     esi
-    dec     ecx
-    jmp     shift_bits
+; shift_bits:
+;     cmp     ecx, 0
+;     je      next_row
+; ;     mov     al, [esi]
+; ;     shl     al, 1             ; Shift left by 1 bit (example operation)
+; ;     mov     [esi], al
+; ;     inc     esi
+;     dec     ecx
+;     jmp     shift_bits
 
-next_row:
-    ; === End Integration of Slanting Logic ===
+; next_row:
+;     ; === End Integration of Slanting Logic ===
 
-    ; Move to the next row
-    inc     edi               ; Increment row index
-    jmp     process_row
+;     ; Move to the next row
+;     inc     edi               ; Increment row index
+;     jmp     process_row
 
 end_function:
     pop     edi               ; Restore edi (row index)
     pop     esi               ; Restore esi (img pointer)
     pop     ebx               ; Restore ebx (stride)
+
+    mov     esp, ebp          ; Restore stack pointer
     pop     ebp
     ret
