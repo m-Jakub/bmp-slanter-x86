@@ -5,6 +5,7 @@
 
 // Assembly function declaration
 extern void slantbmp1(void *img, int width, int height);
+void inspect_rows(uint8_t *img, int height, int stride, size_t img_size);
 
 int main(int argc, char *argv[])
 {
@@ -26,11 +27,11 @@ int main(int argc, char *argv[])
 	}
 
 	// Read BMP header
-	uint8_t header[54];
-	size_t header_read = fread(header, sizeof(uint8_t), 54, file);
-	if (header_read != 54)
+	uint8_t header[62];
+	size_t header_read = fread(header, sizeof(uint8_t), 62, file);
+	if (header_read != 62)
 	{
-		fprintf(stderr, "Error reading BMP header\n");
+		fprintf(stderr, "Error reading complete BMP header\n");
 		fclose(file);
 		return 1;
 	}
@@ -105,16 +106,11 @@ int main(int argc, char *argv[])
 	}
 	fclose(file);
 
-	// Debug: Inspect first 16 bytes of pixel data
-	printf("First 16 bytes of pixel data:\n");
-	for (int i = 0; i < 16 && i < (int)img_size; i++)
-	{
-		printf("%02X ", img[i]);
-	}
-	printf("\n");
+	// Debug: Inspect every height/10th row of pixel data
+	// inspect_rows(img, height, stride, img_size);
 
 	// Call assembly function to process the image
-	//     slantbmp1(img, width, abs(height));
+	// slantbmp1(img, width, abs(height));
 
 	// Open the output BMP file for writing
 	FILE *outfile = fopen(output_file, "wb");
@@ -151,4 +147,23 @@ int main(int argc, char *argv[])
 
 	free(img);
 	return 0;
+}
+
+void inspect_rows(uint8_t *img, int height, int stride, size_t img_size)
+{
+	int step = height / 10;
+	if (step == 0)
+		step = 1;
+
+	printf("Inspecting pixel data at every %dth row:\n", step);
+	for (int row = 0; row < height; row += step)
+	{
+		int offset = row * stride;
+		printf("Row %d (offset %d): ", row, offset);
+		for (int i = 0; i < 16 && (offset + i) < (int)img_size; i++) // Display up to 16 bytes per row
+		{
+			printf("%02X ", img[offset + i]);
+		}
+		printf("\n");
+	}
 }
