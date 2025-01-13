@@ -3,8 +3,13 @@
 #include <stdint.h>
 #include <string.h>
 
+// 14. void slantbmp1(void *img, int width, int height)
+// Slant a 1 bpp .BMP image so that each line of image is rotated (wrapping around the edge)
+// to the right by a number of pixels equal to the line number, assuming that topmost line is
+// assigned number 0. Handle any image width properly.
+
 // Assembly function declaration
-extern void slantbmp1(void *img, int width, int height);
+extern void slantbmp1(void *img, int width, int height, int stride);
 void inspect_rows(uint8_t *img, int height, int stride, size_t img_size);
 
 int main(int argc, char *argv[])
@@ -110,7 +115,7 @@ int main(int argc, char *argv[])
 	// inspect_rows(img, height, stride, img_size);
 
 	// Call assembly function to process the image
-	// slantbmp1(img, width, abs(height));
+	slantbmp1(img, width, height, stride);
 
 	// Open the output BMP file for writing
 	FILE *outfile = fopen(output_file, "wb");
