@@ -23,12 +23,9 @@ slantbmp1:
     ; ----------------------------
     ; Load Function Parameters
     ; ----------------------------
-    mov     esi, [ebp + 8]      ; esi = img (pointer to image data)
-    mov     ebx, [ebp + 12]     ; ebx = height (image width in pixels)
-    mov     edx, [ebp + 20]     ; edx = stride (image stride in bytes)
 
     ; Initialize Row Counter
-    xor     eax, eax            ; eax = row_number = 0
+    xor     ebx, ebx            ; ebx = row_number = 0
 
     ; ----------------------------
     ; Perform Byte-Wise Shift (if applicable)
@@ -41,27 +38,60 @@ slantbmp1:
 row_loop:
 
     ; Loop Condition: Check if all rows are processed
-    cmp     eax, ebx            ; Compare row_number with height
+    cmp     ebx, [ebp + 16]     ; Compare row_number with height
     jge     end                 ; If row_number >= height, exit loop
 
     ; Calculate Pointer to Current Row
     ; edi will point to the start of the current row
-    mov     edi, eax            ; edi = row_number
-    imul    edi, edx            ; edi = row_number * stride
-    add     edi, esi            ; edi = img + (row_number * stride)
+    mov     edi, ebx            ; edi = row_number
+    imul    edi, [ebp + 20]            ; edi = row_number * stride
+    add     edi, [ebp + 8]            ; edi = img + (row_number * stride)
 
     ; Determine Shift Amount for Current Row
     ; The shift amount is equal to the row number
-    mov     ecx, eax              ; ecx = shift_amount = row_number
+    mov     ecx, ebx              ; ecx = shift_amount = row_number
     shr     ecx, 3               ; ecx = shift_amount / 8
 
     ; ----------------------------
     ; Perform Byte-wise Shift (if applicable)
     ; ----------------------------
 
-    ; Check if 
+    ; Check if shift_amount is non-zero
     test    ecx, ecx            ; Check if shift_amount is zero
     je      bitwise_shift       ; If shift_amount is zero, skip byte-wise shift
+
+
+; 1. Save the last 'bytes_shift' bytes to a temporary buffer
+    push    ecx                   ; Save bytes_shift count on stack
+    ; mov     edx, ecx            ; Move bytes_shift to EDX for preservation
+    ; add     edi, [ebp + 20]     ; edi = edi + [ebp + 20] (end of the row)
+    ; sub     edi, ecx            ; edi = edi - ecx (start of last 'bytes_shift' bytes)
+    ; mov     esi, edi            ; esi = address of last 'bytes_shift' bytes
+    ; sub     esp, ecx            ; Allocate 'bytes_shift' bytes on stack for temporary buffer
+    ; mov     edi, esp            ; EDI points to temporary buffer
+    ; mov     ecx, edx            ; ECX = bytes_shift
+    ; rep     movsb               ; Copy 'bytes_shift' bytes from ESI to EDI
+
+    pop     ecx                 ; Restore bytes_shift count
+
+    ; ; 2. Shift the first (stride - bytes_shift) bytes to the right by 'bytes_shift' bytes
+    ; mov     esi, edi            ; ESI = start of temporary buffer
+    ; sub     esi, ecx            ; ESI = start of temporary buffer
+    ; lea     edi, [esi + edx]    ; EDI = start of row + bytes_shift
+    ; mov     ecx, [ebp + 20]            ; ECX = stride (bytes per row)
+    ; sub     ecx, edx            ; ECX = stride - bytes_shift
+    ; rep     movsb                ; Shift (stride - bytes_shift) bytes right by 'bytes_shift' bytes
+
+    ; ; 3. Restore the saved bytes to the beginning of the row
+    ; mov     esi, esp            ; ESI = temporary buffer
+    ; mov     esi, edi            ; ESI = start of temporary buffer
+    ; sub     esi, ecx            ; ESI = start of temporary buffer
+    ; mov     ecx, edx            ; ECX = bytes_shift
+    ; rep     movsb                ; Restore 'bytes_shift' bytes to start
+
+    ; ; 4. Cleanup temporary buffer
+    ; add     esp, edx            ; Deallocate temporary buffer
+    ; pop     ecx                 ; Restore bytes_shift count
 
 
 bitwise_shift:
@@ -80,7 +110,7 @@ bitwise_shift:
     ; ----------------------------
     ; Increment Row Counter
     ; ----------------------------
-    inc     eax                 ; row_number++
+    inc     ebx                 ; row_number++
 
     ; ----------------------------
     ; Continue to Next Row
