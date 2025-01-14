@@ -76,7 +76,7 @@ shift_row_loop:
     mov    [ecx + 1], ah    ; store byte to current position
     dec    ecx                ; move to previous byte
     cmp    ecx, edi            ; check if we reached the start of the row
-    jae    shift_row_loop    ; repeat loop if not
+    jae    shift_row_loop    ; repeat loop if not at the start of the row
 
     ; Restore the saved byte to the beginning of the row
     mov    [edi], al            ; restore the saved byte to the beginning of the row

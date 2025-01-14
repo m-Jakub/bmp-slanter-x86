@@ -3,172 +3,180 @@
 #include <stdint.h>
 #include <string.h>
 
-// 14. void slantbmp1(void *img, int width, int height)
-// Slant a 1 bpp .BMP image so that each line of image is rotated (wrapping around the edge)
-// to the right by a number of pixels equal to the line number, assuming that topmost line is
-// assigned number 0. Handle any image width properly.
-
 // Assembly function declaration
-extern void slantbmp1(void *img, int width, int height, int stride);
-void inspect_rows(uint8_t *img, int height, int stride, size_t img_size);
+extern void slantbmp1(void *img, uint32_t width, uint32_t height, uint32_t stride);
+void inspect_rows(uint8_t *img, uint32_t height, uint32_t stride);
 
 int main(int argc, char *argv[])
 {
-	if (argc != 3)
-	{
-		fprintf(stderr, "Usage: %s <input.bmp> <output.bmp>\n", argv[0]);
-		return 1;
-	}
+    if (argc != 3)
+    {
+        fprintf(stderr, "Usage: %s <input.bmp> <output.bmp>\n", argv[0]);
+        return 1;
+    }
 
-	const char *input_file = argv[1];
-	const char *output_file = argv[2];
+    const char *input_file = argv[1];
+    const char *output_file = argv[2];
 
-	// Open and read BMP file
-	FILE *file = fopen(input_file, "rb");
-	if (!file)
-	{
-		perror("Error opening input file");
-		return 1;
-	}
+    uint32_t width, height, bits_per_pixel, stride, img_size;
 
-	// Read BMP header
-	uint8_t header[62];
-	size_t header_read = fread(header, sizeof(uint8_t), 62, file);
-	if (header_read != 62)
-	{
-		fprintf(stderr, "Error reading complete BMP header\n");
-		fclose(file);
-		return 1;
-	}
+    // Open and read BMP file
+    FILE *file = fopen(input_file, "rb");
+    if (!file)
+    {
+        perror("Error opening input file");
+        return 1;
+    }
 
-	// Validate BMP format
-	if (header[0] != 'B' || header[1] != 'M')
-	{
-		fprintf(stderr, "Invalid BMP file\n");
-		fclose(file);
-		return 1;
-	}
+    // Read BMP Header (14 bytes) and DIB Header (40 bytes) - Total 54 bytes
+    unsigned char header[54];
+    if (fread(header, sizeof(unsigned char), 54, file) != 54)
+    {
+        fprintf(stderr, "Error reading BMP header\n");
+        fclose(file);
+        return 1;
+    }
 
-	// Extract image dimensions and bit depth using memcpy for safety
-	int width_header;
-	int height;
-	short bit_depth;
-	int pixel_data_offset;
+    // Validate BMP Signature
+    if (header[0] != 'B' || header[1] != 'M')
+    {
+        fprintf(stderr, "Invalid BMP file: Incorrect signature\n");
+        fclose(file);
+        return 1;
+    }
 
-	memcpy(&width_header, &header[18], sizeof(int));
-	memcpy(&height, &header[22], sizeof(int));
-	memcpy(&bit_depth, &header[28], sizeof(short));
-	memcpy(&pixel_data_offset, &header[10], sizeof(int));
+    // Extract pixel data offset (bytes 10-13)
+    uint32_t pixel_data_offset = *(uint32_t*)&header[10];
+    printf("Pixel Data Offset: %u bytes\n", pixel_data_offset);
 
-	// Display extracted information
-	printf("Header Width: %d pixels\n", width_header);
-	printf("Header Height: %d pixels\n", height);
-	printf("Bit Depth: %d bits per pixel\n", bit_depth);
-	printf("Pixel Data Offset: %d bytes\n", pixel_data_offset);
+    // Extract width (bytes 18-21) and height (bytes 22-25)
+    width = *(uint32_t*)&header[18];
+    height = *(int32_t*)&header[22]; // height can be negative for top-down BMP
+    printf("Width: %u pixels\n", width);
+    printf("Height: %d pixels\n", height);
 
-	if (bit_depth != 1)
-	{
-		fprintf(stderr, "Only 1 bpp BMP images are supported\n");
-		fclose(file);
-		return 1;
-	}
+    // Extract bits per pixel (bytes 28-29)
+    bits_per_pixel = *(uint16_t*)&header[28];
+    printf("Bits per Pixel: %u\n", bits_per_pixel);
 
-	// Use the width from the BMP header
-	int width = width_header;
+    // Validate bits per pixel
+    if (bits_per_pixel != 1)
+    {
+        fprintf(stderr, "Unsupported BMP format: %u bits per pixel\n", bits_per_pixel);
+        fclose(file);
+        return 1;
+    }
 
-	// Calculate stride (padded row size)
-	int stride = ((width + 31) / 32) * 4;
-	printf("Calculated Stride: %d bytes\n", stride);
+    // Calculate raw stride (bytes per row without padding)
+    int raw_stride = (width + 7) / 8;
 
-	// Allocate memory for the image
-	size_t img_size = stride * (size_t)abs(height);
-	printf("Image Size: %zu bytes\n", img_size);
-	uint8_t *img = malloc(img_size);
-	if (!img)
-	{
-		perror("Error allocating memory for image");
-		fclose(file);
-		return 1;
-	}
+    // Calculate padding to align stride to 4-byte boundary
+    uint32_t padding = (4 - (raw_stride % 4)) % 4;
 
-	// Seek to pixel data offset
-	if (fseek(file, pixel_data_offset, SEEK_SET) != 0)
-	{
-		fprintf(stderr, "Error seeking to pixel data\n");
-		free(img);
-		fclose(file);
-		return 1;
-	}
+    // Total stride including padding
+    stride = raw_stride + padding;
+    printf("Calculated Stride: %u bytes\n", stride);
 
-	// Read image data
-	size_t img_read = fread(img, sizeof(uint8_t), img_size, file);
-	if (img_read != img_size)
-	{
-		fprintf(stderr, "Error reading BMP data\n");
-		free(img);
-		fclose(file);
-		return 1;
-	}
-	fclose(file);
+    // Calculate image size
+    img_size = stride * (uint32_t)(height);
+    printf("Image Size: %u bytes\n", img_size);
 
-	// Debug: Inspect every height/10th row of pixel data
-	// inspect_rows(img, height, stride, img_size);
+    // Allocate memory for img data
+    uint8_t *img = malloc(img_size);
+    if (!img)
+    {
+        perror("Memory allocation failed for image data");
+        fclose(file);
+        return 1;
+    }
 
-	// Call assembly function to process the image
-	slantbmp1(img, width, height, stride);
+    // Seek to the start of the bitmap data
+    if (fseek(file, pixel_data_offset, SEEK_SET) != 0)
+    {
+        fprintf(stderr, "Error seeking to pixel data\n");
+        free(img);
+        fclose(file);
+        return 1;
+    }
 
-	// Open the output BMP file for writing
-	FILE *outfile = fopen(output_file, "wb");
-	if (!outfile)
-	{
-		perror("Error opening output file");
-		free(img);
-		return 1;
-	}
+    // Read the bitmap into the allocated memory row by row to handle padding correctly
+    for (uint32_t row = 0; row < (uint32_t)(height); row++)
+    {
+        size_t bytes_read = fread(img + row * stride, sizeof(uint8_t), stride, file);
+        if (bytes_read != stride)
+        {
+            fprintf(stderr, "Error reading BMP data at row %u: Expected %u bytes, got %zu bytes\n", row, stride, bytes_read);
+            free(img);
+            fclose(file);
+            return 1;
+        }
+    }
 
-	// Write the complete 62-byte header
-	size_t header_written = fwrite(header, sizeof(uint8_t), 62, outfile);
-	if (header_written != 62)
-	{
-		fprintf(stderr, "Error writing BMP header to output file\n");
-		free(img);
-		fclose(outfile);
-		return 1;
-	}
+    fclose(file);
 
-	// Write the pixel data
-	size_t img_written = fwrite(img, sizeof(uint8_t), img_size, outfile);
-	if (img_written != img_size)
-	{
-		fprintf(stderr, "Error writing BMP pixel data to output file\n");
-		free(img);
-		fclose(outfile);
-		return 1;
-	}
+    // Debug: Inspect every height/10th row of pixel data
+    inspect_rows(img, (height), stride);
 
-	fclose(outfile);
+    // Call assembly function to process the image
+    slantbmp1(img, width, (height), stride);
 
-	printf("Image processed successfully! Saved to %s\n", output_file);
+    // Open the output BMP file for writing
+    FILE *outfile = fopen(output_file, "wb");
+    if (!outfile)
+    {
+        perror("Error opening output file");
+        free(img);
+        return 1;
+    }
 
-	free(img);
-	return 0;
+    // Update image size in the header (bytes 34-37)
+    *(uint32_t*)&header[34] = img_size;
+
+    // Update file size in the header (bytes 2-5)
+    *(uint32_t*)&header[2] = 54 + img_size;
+
+    // Write the 54-byte BMP header to the output file
+    size_t header_written = fwrite(header, sizeof(uint8_t), 54, outfile);
+    if (header_written != 54)
+    {
+        fprintf(stderr, "Error writing BMP header to output file\n");
+        free(img);
+        fclose(outfile);
+        return 1;
+    }
+
+    // Write the pixel data row by row to handle padding correctly
+    for (uint32_t row = 0; row < (uint32_t)(height); row++)
+    {
+        size_t bytes_written = fwrite(img + row * stride, sizeof(uint8_t), stride, outfile);
+        if (bytes_written != stride)
+        {
+            fprintf(stderr, "Error writing BMP pixel data at row %u: Expected %u bytes, wrote %zu bytes\n", row, stride, bytes_written);
+            free(img);
+            fclose(outfile);
+            return 1;
+        }
+    }
+
+    fclose(outfile);
+
+    printf("Image processed successfully! Saved to %s\n", output_file);
+
+    free(img);
+    return 0;
 }
 
-void inspect_rows(uint8_t *img, int height, int stride, size_t img_size)
+void inspect_rows(uint8_t *img, uint32_t height, uint32_t stride)
 {
-	int step = height / 10;
-	if (step == 0)
-		step = 1;
-
-	printf("Inspecting pixel data at every %dth row:\n", step);
-	for (int row = 0; row < height; row += step)
-	{
-		int offset = row * stride;
-		printf("Row %d (offset %d): ", row, offset);
-		for (int i = 0; i < 16 && (offset + i) < (int)img_size; i++) // Display up to 16 bytes per row
-		{
-			printf("%02X ", img[offset + i]);
-		}
-		printf("\n");
-	}
+    printf("\nInspecting every %u-th row of pixel data:\n", height / 10);
+    for (uint32_t row = 0; row < height; row += height / 10)
+    {
+        printf("Row %u:\n", row);
+        for (uint32_t i = 0; i < stride; i++)
+        {
+            printf("%02X ", img[row * stride + i]);
+        }
+        printf("\n");
+    }
+    printf("\n");
 }
