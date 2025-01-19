@@ -76,7 +76,8 @@ int main(int argc, char *argv[])
 		if (remaining_header_read != remaining_header_size)
 		{
 			fprintf(stderr, "Error reading remaining header data\n");
-			free(header_remaining);
+			if (header_remaining)
+				free(header_remaining);
 			fclose(file);
 			return 1;
 		}
@@ -198,11 +199,12 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Error writing BMP remaining header data to output file\n");
 			if (img)
 				free(img);
-			free(header_remaining);
+			
 			fclose(outfile);
 			return 1;
 		}
-		free(header_remaining);
+		if (header_remaining)
+			free(header_remaining);
 	}
 
 	// Write the pixel data

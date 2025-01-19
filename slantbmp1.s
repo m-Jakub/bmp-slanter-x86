@@ -33,18 +33,28 @@ slantbmp1:
     mov     cl, [ebp + 12]     ; ecx = width
     and     cl, 0b00000111     ; ecx = width % 8 = Number of bits in the last byte that are part of the image
     dec     cl                 ; ecx = width % 8 - 1 = Number to rotate left the last byte of the current row
+    cmp     cl, -1	     ; Check if the last byte is a full byte
+    jne     main_loop
+
+    mov     cl, 7	     ; If the last byte is a full byte, set the number to rotate to 7
+    
 
     ; ----------------------------
     ; Perform Byte-Wise Shift (if applicable)
     ; ----------------------------
-row_loop:
-    inc     ebx                 ; row_number++
+main_loop:
 
+    ; Store number of bits to shift (row number) (shift counter)
+    mov     edx, ebx            ; edx = row_number
+    inc     edx                 ; row_number++
+    
     ; Calculate Pointer to Current Row (edi)
     mov     edi, ebx            ; edi = row_number
+    inc     ebx                 ; row_number++
     imul    edi, [ebp + 20]            ; edi = row_number * stride
     add     edi, [ebp + 8]            ; edi = img + (row_number * stride) = Pointer to current row
 
+row_loop:
     ; Calculate pointer to the last byte of the current row (esi)
     mov     esi, [ebp + 12]      ; esi = width
     shr     esi, 3               ; esi = width / 8
@@ -75,9 +85,12 @@ shift_loop:
     ; Set the first byte of the current row to the last bit of the current row
     or      byte [edi], al      ; Set the first byte of the current row to the last bit of the current row
 
+    dec     edx                 ; Decrement the number of bits to shift
+    jg     row_loop            ; If number of bits to shift > 0, continue processing
+
     ; Loop Condition: Check if all rows are processed
     cmp     ebx, [ebp + 16]     ; Compare row_number with height
-    jl     row_loop            ; If row_number < height, continue processing
+    jl     main_loop            ; If row_number < height, continue processing
 
 end:
     ; ----------------------------
