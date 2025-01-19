@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	//Print Header for Debugging
+	// Print Header for Debugging
 	for (int i = 0; i < 54; i++)
 	{
 		printf("Header[%d]: %d\n", i, header[i]);
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	//Etract imade dimensions and bit depth
+	// Etract imade dimensions and bit depth
 	uint32_t width, height;
 	uint16_t bit_depth;
 
@@ -125,7 +125,8 @@ int main(int argc, char *argv[])
 	if (fseek(file, bfOffBits, SEEK_SET) != 0)
 	{
 		fprintf(stderr, "Error seeking to pixel data\n");
-		free(img);
+		if (img)
+			free(img);
 		if (header_remaining)
 			free(header_remaining);
 		fclose(file);
@@ -137,7 +138,8 @@ int main(int argc, char *argv[])
 	if (img_read != img_size)
 	{
 		fprintf(stderr, "Error reading BMP data\n");
-		free(img);
+		if (img)
+			free(img);
 		if (header_remaining)
 			free(header_remaining);
 		fclose(file);
@@ -148,15 +150,27 @@ int main(int argc, char *argv[])
 	// Debug: Inspect every height/10th row of pixel data
 	// inspect_rows(img, height, stride, img_size);
 
+	// Print pixel data for all rows (for debugging)
+	for (int row = 0; row < 2; row++)
+	{
+		printf("Pixel Data for Row %d:\n", row);
+		for (int i = 0; i < stride; i++)
+		{
+			printf("%02X ", img[row * stride + i]);
+		}
+		printf("\n");
+	}
+
 	// Call assembly function to process the image
-	// slantbmp1(img, width, height, stride);
+	slantbmp1(img, width, height, stride);
 
 	// Open the output BMP file for writing
 	FILE *outfile = fopen(output_file, "wb");
 	if (!outfile)
 	{
 		perror("Error opening output file");
-		free(img);
+		if (img)
+			free(img);
 		if (header_remaining)
 			free(header_remaining);
 		return 1;
@@ -167,7 +181,8 @@ int main(int argc, char *argv[])
 	if (header_written != 54)
 	{
 		fprintf(stderr, "Error writing BMP (54 bytes) header to output file\n");
-		free(img);
+		if (img)
+			free(img);
 		if (header_remaining)
 			free(header_remaining);
 		fclose(outfile);
@@ -181,7 +196,8 @@ int main(int argc, char *argv[])
 		if (remaining_header_written != remaining_header_size)
 		{
 			fprintf(stderr, "Error writing BMP remaining header data to output file\n");
-			free(img);
+			if (img)
+				free(img);
 			free(header_remaining);
 			fclose(outfile);
 			return 1;
@@ -194,7 +210,8 @@ int main(int argc, char *argv[])
 	if (img_written != img_size)
 	{
 		fprintf(stderr, "Error writing BMP pixel data to output file\n");
-		free(img);
+		if (img)
+			free(img);
 		fclose(outfile);
 		return 1;
 	}
@@ -203,7 +220,8 @@ int main(int argc, char *argv[])
 
 	printf("Image processed successfully! Saved to %s\n", output_file);
 
-	free(img);
+	if (img)
+		free(img);
 	return 0;
 }
 

@@ -27,86 +27,57 @@ slantbmp1:
     ; Initialize Row Counter
     xor     ebx, ebx            ; ebx = row_number = 0
 
+    ; Calculate Number to rotate the last byte of the current row to the left
+    ; This is performed to store the last in of the current row on the first position of a byte
+    ; To put this byte at the beggining of the row
+    mov     cl, [ebp + 12]     ; ecx = width
+    and     cl, 0b00000111     ; ecx = width % 8 = Number of bits in the last byte that are part of the image
+    dec     cl                 ; ecx = width % 8 - 1 = Number to rotate left the last byte of the current row
+
     ; ----------------------------
     ; Perform Byte-Wise Shift (if applicable)
     ; ----------------------------
 row_loop:
+    inc     ebx                 ; row_number++
+
+    ; Calculate Pointer to Current Row (edi)
+    mov     edi, ebx            ; edi = row_number
+    imul    edi, [ebp + 20]            ; edi = row_number * stride
+    add     edi, [ebp + 8]            ; edi = img + (row_number * stride) = Pointer to current row
+
+    ; Calculate pointer to the last byte of the current row (esi)
+    mov     esi, [ebp + 12]      ; esi = width
+    shr     esi, 3               ; esi = width / 8
+    add     esi, edi             ; esi = edi + (width / 8) = Pointer to the last byte of the current row
+
+    ; Save the last bit of the current row in ah
+    mov     al, [esi]           ; al = Last byte of the current row
+    rol     al, cl	     ; Rotate left the last byte of the current row by ecx bits
+    and     al, 0b10000000      ; al = Last bit of the current row
+
+    shr     byte [esi], 1              ; shift the last byte of the current row to the right
+
+shift_loop:
+
+    dec     esi                 ; esi = Pointer to the byte before the last byte of the current row
+
+    ; Use the carry flag to keep track of the last bit of the current row
+    shr     byte [esi], 1       ; Shift the current byte to the right
+    setc    ah                 ; ah = Carry flag
+    ror     ah, 1              ; Rotate the register to put the carry flag in the first bit
+
+    or      byte [esi+1], ah         ; Set the first bit of the next byte to the carry flag
+
+    ; Loop Condition: Check if all bytes are processed
+    cmp     esi, edi            ; Compare current byte with the first byte of the current row
+    jg      shift_loop          ; If current byte > first byte, continue processing
+
+    ; Set the first byte of the current row to the last bit of the current row
+    or      byte [edi], al      ; Set the first byte of the current row to the last bit of the current row
 
     ; Loop Condition: Check if all rows are processed
     cmp     ebx, [ebp + 16]     ; Compare row_number with height
-    jge     end                 ; If row_number >= height, exit loop
-
-    ; Calculate Pointer to Current Row
-    ; edi will point to the start of the current row
-    mov     edi, ebx            ; edi = row_number
-    imul    edi, [ebp + 20]            ; edi = row_number * stride
-    add     edi, [ebp + 8]            ; edi = img + (row_number * stride)
-
-    ; Determine Shift Amount for Current Row
-    ; The shift amount is equal to the row number
-    mov     ecx, ebx              ; ecx = shift_amount = row_number
-    shr     ecx, 3               ; ecx = shift_amount / 8
-
-    ; Check if shift_amount is non-zero
-    test    ecx, ecx            ; Check if shift_amount is zero
-    jz      bitwise_shift       ; If shift_amount is zero, skip byte-wise shift
-
-
-    ; ----------------------------
-    ; Byte-Wise Shift
-    ; ----------------------------
-
-    mov    esi, edi            ; esi = start of row
-    add    esi, [ebp + 20]     ; esi = end of row (row_start + stride)
-    dec    esi                ; esi = last byte of row
-    mov    edx, ecx            ; edx = bytes_shift (counter for wrap-around bytes loop)
-
-    ; ----------------------------
-    ; Process Wrap-Around Bytes
-    ; ----------------------------
-wrap_loop:
-    mov    al, [esi]            ; al = last byte of row
-
-    ; Shift the whole row by one byte to the right
-    mov    ecx, esi         ; ecx = current byte
-    dec    ecx                ; move to previous byte
-    
-shift_row_loop:
-    mov    ah, [ecx]            ; ah = load byte from previous position
-    mov    [ecx + 1], ah    ; store byte to current position
-    dec    ecx                ; move to previous byte
-    cmp    ecx, edi            ; check if we reached the start of the row
-    jae    shift_row_loop    ; repeat loop if not at the start of the row
-
-    ; Restore the saved byte to the beginning of the row
-    mov    [edi], al            ; restore the saved byte to the beginning of the row
-
-    ; Update wrap_loop variables
-    dec    edx                ; decrement bytes_shift
-    jnz    wrap_loop            ; repeat loop if not zero
-
-bitwise_shift:
-    ; ----------------------------
-    ; Perform Bit-wise Shift (if applicable)
-    ; ----------------------------
-    ; Calculate remaining bits to shift after byte-wise shift
-    ; Example Steps:
-    ; 1. Compute bits_shift = shift_amount % 8
-    ; 2. Iterate through each byte in the row
-    ; 3. Shift bits to the right by 'bits_shift'
-    ; 4. Handle carry-over bits between bytes for wrapping
-    ; 
-    ; [Insert Bit-wise Shifting Logic Here]
-
-    ; ----------------------------
-    ; Increment Row Counter
-    ; ----------------------------
-    inc     ebx                 ; row_number++
-
-    ; ----------------------------
-    ; Continue to Next Row
-    ; ----------------------------
-    jmp     row_loop            ; Repeat loop for the next row
+    jl     row_loop            ; If row_number < height, continue processing
 
 end:
     ; ----------------------------
