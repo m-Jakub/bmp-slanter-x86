@@ -35,7 +35,7 @@ slantbmp1:
     ; ----------------------------
 
     ; Initialize Row Counter
-    xor     rbx, rbx            ; rbx = row_number = 0
+    mov     rbx, 1              ; rbx = row_number = 1 (starting from row 1)
 
     ; Calculate Number to rotate the last byte of the current row to the left
     ; This is performed to store the last in of the current row on the first position of a byte
@@ -56,7 +56,6 @@ main_loop:
 
     ; Store number of bits to shift (row number) (shift counter)
     mov     rdx, rbx            ; rdx = row_number
-    inc     rdx                 ; row_number++
     
     ; Calculate Pointer to Current Row (rdi)
     mov     rdi, rbx            ; rdi = row_number
