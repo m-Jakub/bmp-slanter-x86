@@ -30,7 +30,7 @@ slantbmp1:
     ; Calculate Number to rotate the last byte of the current row to the left
     ; This is performed to store the last in of the current row on the first position of a byte
     ; To put this byte at the beggining of the row
-    mov     cl, [ebp + 12]     ; ecx = width
+    mov     ecx, [ebp + 12]     ; ecx = width
     and     cl, 0b00000111     ; ecx = width % 8 = Number of bits in the last byte that are part of the image
     dec     cl                 ; ecx = width % 8 - 1 = Number to rotate left the last byte of the current row
     cmp     cl, -1	     ; Check if the last byte is a full byte
@@ -86,11 +86,11 @@ shift_loop:
     or      byte [edi], al      ; Set the first byte of the current row to the last bit of the current row
 
     dec     edx                 ; Decrement the number of bits to shift
-    jg     row_loop            ; If number of bits to shift > 0, continue processing
+    jg      row_loop            ; If number of bits to shift > 0, continue processing
 
     ; Loop Condition: Check if all rows are processed
     cmp     ebx, [ebp + 16]     ; Compare row_number with height
-    jl     main_loop            ; If row_number < height, continue processing
+    jl      main_loop            ; If row_number < height, continue processing
 
 end:
     ; ----------------------------
