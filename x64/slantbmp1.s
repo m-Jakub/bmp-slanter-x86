@@ -35,7 +35,8 @@ slantbmp1:
     ; ----------------------------
 
     ; Initialize Row Counter
-    mov     rbx, 1              ; rbx = row_number = 1 (starting from row 1)
+    mov     rbx, r10              ; rbx = row_number = 1 (starting from row 1)
+    sub     rbx, 2                ; rbx = height - 2
 
     ; Calculate Number to rotate the last byte of the current row to the left
     ; This is performed to store the last in of the current row on the first position of a byte
@@ -55,11 +56,13 @@ slantbmp1:
 main_loop:
 
     ; Store number of bits to shift (row number) (shift counter)
-    mov     rdx, rbx            ; rdx = row_number
-    
+    mov     rdx, r10            ; rdx = row_number
+    sub     rdx, rbx
+    dec     rdx                 ; Decrement the number of bits to shift
+
     ; Calculate Pointer to Current Row (rdi)
     mov     rdi, rbx            ; rdi = row_number
-    inc     rbx                 ; row_number++
+    dec     rbx                 ; row_number++
     imul    rdi, r11            ; rdi = row_number * stride
     add     rdi, r8            ; rdi = img + (row_number * stride) = Pointer to current row
 
@@ -99,8 +102,8 @@ shift_loop:
     jg      row_loop            ; If number of bits to shift > 0, continue processing
 
     ; Loop Condition: Check if all rows are processed
-    cmp     rbx, r10     ; Compare row_number with height
-    jl      main_loop            ; If row_number < height, continue processing
+    test    ebx, ebx            ; Check if row_number == 0
+    jg      main_loop            ; If row_number < height, continue processing
 
 end:
     ; ----------------------------
