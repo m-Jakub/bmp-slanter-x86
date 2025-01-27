@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+	    {
+		"label": "build",
+		"type": "shell",
+		"command": "make",
+		"problemMatcher": [
+		    "$gcc",
+		    {
+			"owner": "external",
+			"fileLocation": [
+			    "relative",
+			    "${workspaceFolder}"
+			],
+			"pattern": {
+			    "regexp": "^(.*):(\\d+):\\s+(warning|error):\\s+(.*)$",
+			    "file": 1,
+			    "line": 2,
+			    "severity": 3,
+			    "message": 4
+			}
+		    }
+		],
+		"presentation": {
+		    "reveal": "always",
+		    "revealProblems": "onProblem"
+		},
+		"group": {
+		    "kind": "build",
+		    "isDefault": true
+		}
+	    }
+	]
+    }
