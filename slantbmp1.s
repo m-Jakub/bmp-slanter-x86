@@ -25,7 +25,6 @@ slantbmp1:
     ; ----------------------------
 
     ; Allocate row buffer 
-    debug:
     mov     ecx, [ebp + 12]     ; ecx = width
     mov     edx, ecx	        ; edx = width
     shr     ecx, 3              ; ecx = width / 8 (number of full bytes)
@@ -74,10 +73,13 @@ main_loop:
     mov     edi, esp            ; edi = buffer pointer
     rep movsb                   ; Copy bytes from [esi] to [edi]
 
+    xor     esi, esi            ; esi = 0
+    mov     esi, ecx	    ; esi = buffer size
+
 row_loop:
     ; Calculate pointer to the last byte of the buffer
     mov     edi, esp            ; edi = buffer pointer
-    add     edi, ecx            ; edi = buffer pointer + number of bytes
+    add     edi, esi            ; edi = buffer pointer + number of bytes
     dec     edi                 ; edi = Pointer to the last byte of the buffer
 
     ; Save the last bit of the current row in al
@@ -109,11 +111,16 @@ shift_loop:
     dec     dh                 ; Decrement the number of bits to shift
     jg      row_loop            ; If number of bits to shift > 0, continue processing
 
+    ; Calculate Pointer to Current Row (edi)
+    mov     edi, ebx            ; edi = row_number
+    imul    edi, [ebp + 20]     ; edi = row_number * stride
+    add     edi, [ebp + 8]      ; edi = img + (row_number * stride) = Pointer to current row
     ; Restore the row from the buffer to the image
     mov     ecx, ebp	    ; ecx = base pointer
     sub     ecx, esp
     sub     ecx, 12	    ; ecx = buffer size
-    xchg    edi, esi            ; edi = Pointer to the current row, esi = Pointer to the buffer
+    mov     esi, esp            ; esi = buffer pointer
+    debug:
     rep movsb                   ; Copy bytes from [esi] to [edi]
 
     ; Loop Condition: Check if all rows are processed
