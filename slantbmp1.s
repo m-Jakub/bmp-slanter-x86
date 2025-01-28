@@ -72,9 +72,11 @@ main_loop:
     sub     ecx, 12	    ; ecx = buffer size
     mov     edi, esp            ; edi = buffer pointer
     rep movsb                   ; Copy bytes from [esi] to [edi]
+    ; ecx is being zeroed by rep movsb
 
-    xor     esi, esi            ; esi = 0
-    mov     esi, ecx	    ; esi = buffer size
+    mov     esi, ebp	    ; esi = base pointer
+    sub     esi, esp
+    sub     esi, 12	    ; esi = buffer size
 
 row_loop:
     ; Calculate pointer to the last byte of the buffer
@@ -108,8 +110,9 @@ shift_loop:
     ; Set the first byte of the current row to the last bit of the current row
     or      byte [esp], al      ; Set the first byte of the current row to the last bit of the current row
 
+debug:
     dec     dh                 ; Decrement the number of bits to shift
-    jg      row_loop            ; If number of bits to shift > 0, continue processing
+    jnz     row_loop            ; If number of bits to shift > 0, continue processing
 
     ; Calculate Pointer to Current Row (edi)
     mov     edi, ebx            ; edi = row_number
@@ -120,13 +123,12 @@ shift_loop:
     sub     ecx, esp
     sub     ecx, 12	    ; ecx = buffer size
     mov     esi, esp            ; esi = buffer pointer
-    debug:
     rep movsb                   ; Copy bytes from [esi] to [edi]
 
     ; Loop Condition: Check if all rows are processed
     dec     ebx                 ; row_number++
     test    ebx, ebx            ; Check if row_number == 0
-    jg      main_loop            ; If row_number < height, continue processing
+    jnz     main_loop            ; If row_number < height, continue processing
 
 end:
     ; ----------------------------
