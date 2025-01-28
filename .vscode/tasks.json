@@ -30,6 +30,15 @@
 		    "kind": "build",
 		    "isDefault": true
 		}
+	    },
+	    {
+		"label": "test",
+		"command": "${workspaceFolder}/rev",
+		"args": ["abcdef", "12345", "desrever"],
+		"group": {
+		    "kind": "test",
+		    "isDefault": true
+		}
 	    }
 	]
     }

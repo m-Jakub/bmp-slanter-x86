@@ -57,7 +57,9 @@ no_extra_byte:
     ; ----------------------------
 main_loop:
     ; Calculate number of single bits to shift (row number % 8)
-    mov     ecx, ebx            ; ecx = row_number
+    mov     ecx, [ebp + 16]
+    sub     ecx, ebx            ; ecx = row_number
+    dec     ecx                 ; ecx = row_number - 1
     and     ecx, 0b00000111     ; ecx = row_number % 8 = Number of bits to shift
     mov     dh, cl              ; dh = Number of bits to shift
 
@@ -70,13 +72,13 @@ main_loop:
     mov     ecx, ebp	    ; ecx = base pointer
     sub     ecx, esp
     sub     ecx, 12	    ; ecx = buffer size
+    mov     eax, ecx            ; eax = buffer size
+
     mov     edi, esp            ; edi = buffer pointer
     rep movsb                   ; Copy bytes from [esi] to [edi]
     ; ecx is being zeroed by rep movsb
 
-    mov     esi, ebp	    ; esi = base pointer
-    sub     esi, esp
-    sub     esi, 12	    ; esi = buffer size
+    mov     esi, eax            ; esi = buffer size
 
 row_loop:
     ; Calculate pointer to the last byte of the buffer
@@ -91,6 +93,8 @@ row_loop:
     and     al, 0b10000000      ; al = Last bit of the current row
 
     shr     byte [edi], 1              ; shift the last byte of the current row to the right
+    cmp     edi, esp            ; Compare current byte with the first byte of the current row
+    je      end_shift_loop      ; If current byte == first byte, skip shifting
 
 shift_loop:
 
@@ -108,6 +112,8 @@ shift_loop:
     jg      shift_loop          ; If current byte > first byte, continue processing
 
     ; Set the first byte of the current row to the last bit of the current row
+
+end_shift_loop:
     or      byte [esp], al      ; Set the first byte of the current row to the last bit of the current row
 
 debug:
