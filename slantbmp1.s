@@ -1,4 +1,8 @@
 ; filepath: /mnt/c/Studies/Sem_5/COAR/Project_x86/slantbmp1.s
+
+extern malloc
+extern free
+
 section .text
     global slantbmp1
 
@@ -36,8 +40,14 @@ slantbmp1:
     mov     [ebp - 8], ecx      ; Store the number of padding bytes
     
 
-    ; Allocate buffer on the stack using the calculated number of bytes
-    sub     esp, [ebp + 20]            ; Allocate 'number of bytes' on the stack
+    ; Allocate temporary row buffer on the heap instead of the stack.
+    mov     eax, [ebp + 20]     ; eax = stride (buffer size)
+    push    eax                 ; push size for malloc
+    call    malloc
+    add     esp, 4
+    ; Reserve a local slot for the buffer pointer; use [ebp-12]
+    sub     esp, 4
+    mov     [ebp - 12], eax     ; store the buffer pointer
 
     ; ----------------------------
     ; Initialize Saved Registers
@@ -53,7 +63,7 @@ slantbmp1:
     ; This is performed to store the last in of the current row on the first position of a byte
     ; To put this byte at the beggining of the row
     mov     edx, [ebp + 12]     ; edx = width
-    and     dl, 0b00000111     ; edx = width % 8 = Number of bits in the last byte that are part of the image
+    and     dl, 0b00000111      ; edx = width % 8 = Number of bits in the last byte that are part of the image
 
     ; ----------------------------
     ; Perform Byte-Wise Shift (if applicable)
@@ -68,7 +78,7 @@ main_loop:
     ; Store the current row in the buffer
     mov     esi, [ebp - 4]      ; esi = Pointer to the last row
     mov     ecx, [ebp + 20]      ; ecx = buffer size = stride
-    mov     edi, esp            ; edi = buffer pointer
+    mov     edi, [ebp - 12]            ; edi = buffer pointer
     rep movsb                   ; Copy bytes from [esi] to [edi]
 
 row_loop:
@@ -78,7 +88,7 @@ row_loop:
     sub     esi, [ebp - 8]       ; esi = stride - padding_bytes
 
     ; Store pointer to the current row in edi
-    mov     edi, esp            ; edi = buffer pointer
+    mov     edi, [ebp - 12]            ; edi = buffer pointer
 
     clc		     ; Clear the carry flag before shifting
 
@@ -91,7 +101,6 @@ shift_loop:
     dec     esi                 ; edi = Pointer to the byte before the last byte of the current row
     jnz     shift_loop          ; If current byte > first byte, continue processing
 
-debug:
     ; Set the first byte of the current row to the last bit of the current row (that was stored in the carry flag)
     dec     edi                 ; edi = Pointer to the first byte of the current row
     mov     al, [edi]           ; al = Last byte of the current row
@@ -99,7 +108,8 @@ debug:
     shl     al, cl	      ; Shift the last bit to the first position
 
     ; Store the first byte of the current row
-    or      byte [esp], al      ; Store the first byte of the current row
+    mov     edi, [ebp - 12]      ; edi = buffer pointer
+    or      byte [edi], al      ; Store the first byte of the current row
 
     dec     dh                 ; Decrement the number of bits to shift
     jnz     row_loop            ; If number of bits to shift > 0, continue processing
@@ -108,7 +118,7 @@ debug:
     mov     edi, [ebp - 4]      ; edi = Pointer to current row
     ; Restore the row from the buffer to the image
     mov     ecx, [ebp + 20]      ; ecx = buffer size
-    mov     esi, esp            ; esi = buffer pointer
+    mov     esi, [ebp - 12]            ; esi = buffer pointer
     rep movsb                   ; Copy bytes from [esi] to [edi]
 
 row_divisible_by_8:
@@ -126,6 +136,11 @@ end:
     ; ----------------------------
     ; Function Epilogue
     ; ----------------------------
+
+    ; Before cleanup, free the heap buffer.
+    mov     eax, [ebp - 12] ; load temporary buffer pointer
+    push    eax
+    call    free
 
     pop     edi                 ; Restore edi
     pop     esi                 ; Restore esi

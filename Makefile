@@ -18,7 +18,7 @@ all: $(EXEFILE)
 
 # Rule for building the executable
 $(EXEFILE): $(OBJECTS)
-	$(CC) $(CCFMT) -o $@ $^
+	$(CC) $(CCFMT) -no-pie -o $@ $^
 
 # Rule for compiling C files to object files
 %.o: %.c
