@@ -15,125 +15,95 @@ slantbmp1:
     ; ----------------------------
     push    ebp                 ; Save base pointer
     mov     ebp, esp            ; Establish new base pointer
- 
+
+    ; Reserve a slot for storing the pointer to the current row
+    sub     esp, 4              ; Allocate 4 bytes on the stack
+    
+    mov     eax, [ebp + 16]     ; eax = height
+    dec     eax                 ; eax = height - 1
+    imul    eax, [ebp + 20]     ; eax = (height - 1) * stride
+    add     eax, [ebp + 8]      ; eax = img + ((height -1 ) * stride) = Pointer to the last row
+    mov     [ebp - 4], eax      ; Store the pointer to the last row
+
+    ; Allocate buffer on the stack using the calculated number of bytes
+    sub     esp, [ebp + 20]            ; Allocate 'number of bytes' on the stack
+
+    ; ----------------------------
+    ; Initialize Saved Registers
+    ; ----------------------------
     push    ebx                 ; Preserve ebx
     push    esi                 ; Preserve esi
     push    edi                 ; Preserve edi
 
-    ; ----------------------------
-    ; Load Function Parameters
-    ; ----------------------------
-
-    ; Allocate row buffer 
-    mov     ecx, [ebp + 12]     ; ecx = width
-    mov     edx, ecx	        ; edx = width
-    shr     ecx, 3              ; ecx = width / 8 (number of full bytes)
-    test    edx, 7              ; Check if there are remaining bits
-    jz      no_extra_byte
-    inc     ecx                 ; Add one more byte if there are remaining bits
-
-no_extra_byte:
-    ; Allocate buffer on the stack using the calculated number of bytes
-    sub     esp, ecx            ; Allocate 'number of bytes' on the stack
-    mov     edi, esp            ; edi = buffer pointer
-
     ; Initialize Row Counter
-    mov     ebx, [ebp + 16]              ; ebx = row_number = height
-    sub     ebx, 2
+    xor     ebx, ebx            ; ebx = row_number = 0
 
     ; Calculate Number to rotate the last byte of the current row to the left
     ; This is performed to store the last in of the current row on the first position of a byte
     ; To put this byte at the beggining of the row
     mov     edx, [ebp + 12]     ; edx = width
     and     dl, 0b00000111     ; edx = width % 8 = Number of bits in the last byte that are part of the image
-    dec     dl                 ; edx = width % 8 - 1 = Number to rotate left the last byte of the current row
-    cmp     dl, -1	     ; Check if the last byte is a full byte
-    jne     main_loop
-
-    mov     dl, 7	     ; If the last byte is a full byte, set the number to rotate to 7
+    jz      row_divisible_by_8  ; If width % 8 == 0, skip the bit-wise shift
 
     ; ----------------------------
     ; Perform Byte-Wise Shift (if applicable)
     ; ----------------------------
 main_loop:
     ; Calculate number of single bits to shift (row number % 8)
-    mov     ecx, [ebp + 16]
-    sub     ecx, ebx            ; ecx = row_number
-    dec     ecx                 ; ecx = row_number - 1
+    mov     ecx, ebx
     and     ecx, 0b00000111     ; ecx = row_number % 8 = Number of bits to shift
     mov     dh, cl              ; dh = Number of bits to shift
 
-    ; Calculate Pointer to Current Row (esi)
-    mov     esi, ebx            ; esi = row_number
-    imul    esi, [ebp + 20]     ; esi = row_number * stride
-    add     esi, [ebp + 8]      ; esi = img + (row_number * stride) = Pointer to current row
-
-    ; Fill the buffer with the current row
-    mov     ecx, ebp	    ; ecx = base pointer
-    sub     ecx, esp
-    sub     ecx, 12	    ; ecx = buffer size
-    mov     eax, ecx            ; eax = buffer size
-
+    ; Store the current row in the buffer
+    mov     esi, [ebp - 4]      ; esi = Pointer to the last row
+    mov     ecx, [ebp + 20]      ; ecx = buffer size = stride
     mov     edi, esp            ; edi = buffer pointer
     rep movsb                   ; Copy bytes from [esi] to [edi]
-    ; ecx is being zeroed by rep movsb
-
-    mov     esi, eax            ; esi = buffer size
 
 row_loop:
-    ; Calculate pointer to the last byte of the buffer
+
+    ; Calculate the number of bytes to process
+    mov     esi, [ebp + 20]      ; esi = buffer size = stride
+
+    ; Store pointer to the current row in edi
     mov     edi, esp            ; edi = buffer pointer
-    add     edi, esi            ; edi = buffer pointer + number of bytes
-    dec     edi                 ; edi = Pointer to the last byte of the buffer
 
-    ; Save the last bit of the current row in al
-    mov     al, [edi]           ; al = Last byte of the current row
-    mov     cl, dl	     ; cl = Number of bits to shift
-    rol     al, cl	     ; Rotate left the last byte of the current row by ecx bits
-    and     al, 0b10000000      ; al = Last bit of the current row
-
-    shr     byte [edi], 1              ; shift the last byte of the current row to the right
-    cmp     edi, esp            ; Compare current byte with the first byte of the current row
-    je      end_shift_loop      ; If current byte == first byte, skip shifting
+    clc		     ; Clear the carry flag before shifting
 
 shift_loop:
 
-    dec     edi                 ; edi = Pointer to the byte before the last byte of the current row
-
     ; Use the carry flag to keep track of the last bit of the current row
-    shr     byte [edi], 1       ; Shift the current byte to the right
-    setc    ah                 ; ah = Carry flag
-    ror     ah, 1              ; Rotate the register to put the carry flag in the first bit
+    rcr     byte [edi], 1       ; Rotate right the current byte and set the last bit to the carry flag
 
-    or      byte [edi+1], ah         ; Set the first bit of the next byte to the carry flag
+    inc     edi                 ; Move to the next byte
+    dec     esi                 ; edi = Pointer to the byte before the last byte of the current row
+    jnz     shift_loop          ; If current byte > first byte, continue processing
 
-    ; Loop Condition: Check if all bytes are processed
-    cmp     edi, esp            ; Compare current byte with the first byte of the current row
-    jg      shift_loop          ; If current byte > first byte, continue processing
+    ; Set the first byte of the current row to the last bit of the current row (that was stored in the carry flag)
+    dec     edi                 ; edi = Pointer to the first byte of the current row
+    mov     al, [edi]           ; al = Last byte of the current row
+    mov     cl, dl              ; cl = Number of bits to shift
+    shl     al, cl	      ; Shift the last bit to the first position
 
-    ; Set the first byte of the current row to the last bit of the current row
+    ; Store the first byte of the current row
+    or      byte [esp], al      ; Store the first byte of the current row
 
-end_shift_loop:
-    or      byte [esp], al      ; Set the first byte of the current row to the last bit of the current row
-
-debug:
     dec     dh                 ; Decrement the number of bits to shift
     jnz     row_loop            ; If number of bits to shift > 0, continue processing
 
+row_divisible_by_8:
     ; Calculate Pointer to Current Row (edi)
-    mov     edi, ebx            ; edi = row_number
-    imul    edi, [ebp + 20]     ; edi = row_number * stride
-    add     edi, [ebp + 8]      ; edi = img + (row_number * stride) = Pointer to current row
+    mov     edi, [ebp - 4]      ; edi = Pointer to current row
+    sub     edi, [ebp + 20]     ; edi = Pointer to the previous row
+    mov     [ebp - 4], edi      ; Store the pointer to the current row
     ; Restore the row from the buffer to the image
-    mov     ecx, ebp	    ; ecx = base pointer
-    sub     ecx, esp
-    sub     ecx, 12	    ; ecx = buffer size
+    mov     ecx, [ebp + 20]      ; ecx = buffer size
     mov     esi, esp            ; esi = buffer pointer
     rep movsb                   ; Copy bytes from [esi] to [edi]
 
     ; Loop Condition: Check if all rows are processed
-    dec     ebx                 ; row_number++
-    test    ebx, ebx            ; Check if row_number == 0
+    inc     ebx                 ; row_number++
+    cmp     ebx, [ebp + 16]     ; Compare row_number with height
     jnz     main_loop            ; If row_number < height, continue processing
 
 end:
@@ -141,17 +111,13 @@ end:
     ; Function Epilogue
     ; ----------------------------
 
-    ; Deallocate row buffer
-    mov     ecx, ebp	    ; ecx = base pointer
-    sub     ecx, esp
-    sub     ecx, 12	    ; ecx = buffer size
-    add     esp, ecx            ; Deallocate 'number of bytes' from the stack
-
     pop     edi                 ; Restore edi
     pop     esi                 ; Restore esi
     pop     ebx                 ; Restore ebx
 
+    ; Deallocate the buffer
     mov     esp, ebp            ; Restore stack pointer
+
     pop     ebp                 ; Restore base pointer
     ret                         ; Return to caller
 
